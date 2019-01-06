@@ -19,9 +19,10 @@ echo $DEFAULT_SUBNET
 
 
 # Create ec2 instance
-INSTANCE_ID=$(aws ec2 run-instances --image-id ami-009d6802948d06e52 --count 1 --instance-type t2.micro --key-name $KEYPAIR --subnet-id $DEFAULT_SUBNET --query 'Instances[*].InstanceId' --output text)
+INSTANCE_ID=$(aws ec2 run-instances --image-id ami-009d6802948d06e52 --count 1 --instance-type t2.micro --key-name $KEYPAIR --subnet-id $DEFAULT_SUBNET --query 'Instances[*].InstanceId' --output text --user-data-file user_data.sh)
 
 echo $INSTANCE_ID
+
 
 # Wait until instance is complete
 aws ec2 wait instance-running --instance-ids $INSTANCE_ID	 

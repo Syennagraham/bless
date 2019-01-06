@@ -5,25 +5,26 @@ echo "Missing argument number"
 exit
 fi
 
-POLICYNAME=bkp$1
-ROLENAME=bkr$1
-ALIASNAME=bkk$1
+POLICYNAME=bless_iam_policy$1
+ROLENAME=bless_iam_role$1
+ALIASNAME=bless_kms_alias$1
 PASSWORD='abc123'
-KEY_ID=f8882b60-86e7-4799-aa59-412c1044a762
-KEY_ARN=arn:aws:kms:us-east-1:497773990203:key/f8882b60-86e7-4799-aa59-412c1044a762
+KEY_ID=bless_kms_id$1
+KEY_ARN=bless_kms_arn$1
 
 # Create kms key and query for key id
 
-#KEY_ID=$(aws kms create-key --query KeyMetadata.KeyId --output text )
+KEY_ID=$(aws kms create-key --query KeyMetadata.KeyId --output text )
 echo $KEY_ID
 
 # Query for the kms key id
-#KEY_ARN=$(aws kms describe-key --key-id $KEY_ID  --query KeyMetadata.Arn --output text)
+KEY_ARN=$(aws kms describe-key --key-id $KEY_ID  --query KeyMetadata.Arn --output text)
+
 echo $KEY_ARN
 
 # Create alias for key
 
-# aws kms create-alias --alias-name alias/$ALIASNAME --target-key-id $KEY_ARN
+aws kms create-alias --alias-name alias/$ALIASNAME --target-key-id $KEY_ARN
 
 
 # JSON code for kms policy
@@ -46,8 +47,9 @@ BLESSPOLICY='{ "Version": "2012-10-17",
 
 echo $BLESSPOLICY
 
-# Create the actual policy
+# Create the policy
 POLICY_ARN=$(aws iam create-policy --policy-name $POLICYNAME --policy-document "$BLESSPOLICY" --query Policy.Arn --output text)
+
 echo $POLICY_ARN
 
 # JSON code for kms role
@@ -72,17 +74,24 @@ ROLE_ARN=$(aws iam create-role --role-name $ROLENAME --assume-role-policy-docume
 
 echo $ROLE_ARN
 
+echo 'Starting policy to role attachment'
+
 # Attach policy to role
 aws iam attach-role-policy --role-name $ROLENAME  --policy-arn "$POLICY_ARN"
+
+echo 'Making lambda_configs directory"
 
 # Make a directory for the Lambda config files
 mkdir lambda_configs
 
+
+echo 'Starting CA key creation'
+
 # Create a SSH CA key in lambda_configs
 ssh-keygen -t rsa -N "$PASSWORD" -b 4096 -f ./lambda_configs/bless-cauthority2- -C "SSH CA Key"
 
+echo 'Starting encoding for CA key'
 
-# Encrypt kms key
 B64_PASS=$(aws kms encrypt --key-id $KEY_ID --plaintext $PASSWORD --query CiphertextBlob --output text | base64)
 
 
@@ -93,12 +102,16 @@ B64_PASS=$(aws kms encrypt --key-id $KEY_ID --plaintext $PASSWORD --query Cipher
 # Compile Lambda libaries into a zip file 
 make publish 
 
-de=$(pwd)
-echo $de
-
+echo 'Starting creation of Lambda function'
 
 # Create Lambda
 . ./create_lambda $1
+
+echo 'Created Lambda function'
+echo #########################################################################
+echo #########################################################################
+
+echo 'Starting Key Pair creation'
 
 # Create Key Pair
 . ./keypair_ec2 $1 
