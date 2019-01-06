@@ -79,7 +79,7 @@ echo 'Starting policy to role attachment'
 # Attach policy to role
 aws iam attach-role-policy --role-name $ROLENAME  --policy-arn "$POLICY_ARN"
 
-echo 'Making lambda_configs directory"
+echo 'Making lambda_configs directory'
 
 # Make a directory for the Lambda config files
 mkdir lambda_configs
@@ -111,7 +111,7 @@ echo 'Created Lambda function'
 echo #########################################################################
 echo #########################################################################
 
-echo 'Starting Key Pair creation'
+echo 'Starting Key Pair and ec2 instance creation'
 
-# Create Key Pair
+# Create Key Pair and ec2 instance
 . ./keypair_ec2 $1 
