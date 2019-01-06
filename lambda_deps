@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# Complile Lambda deps
+sudo make lambda-deps
+
+

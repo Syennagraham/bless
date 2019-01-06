@@ -1,0 +1,9 @@
+#!/bin/bash
+
+DEPLOYMENTLAMBDA=blessdeployscript$1
+echo "deploymentlambda = $DEPLOYMENTLAMBDA /n rolearn = $ROLE_ARN" > .lambdafunctionvariables
+
+
+
+# Create Lambda
+aws lambda create-function --function-name $DEPLOYMENTLAMBDA --runtime python3.6 --role $ROLE_ARN --handler bless_lambda.lambda_handler --zip-file fileb://./publish/bless_lambda.zip
