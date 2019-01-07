@@ -27,6 +27,39 @@ echo $KEY_ARN
 aws kms create-alias --alias-name alias/$ALIASNAME --target-key-id $KEY_ARN
 
 
+
+#POSSIBLE KEY ENCRYPTION SOLUTION. NEED TO SAVE everything after b' and put into bless_deploy.cfg
+
+echo 'Creating key encryptor'
+# Create key encryptor with python
+
+#echo 'Encoding kms key'
+#cat<<EOF > key-encrypt.py
+#import boto3
+#import base64
+#import os
+
+
+#def lambda_handler():
+#    client = boto3.client('kms', region_name='us-east-1')
+#    response = client.encrypt(
+#    KeyId='$KEY_ID',
+#    Plaintext='$PASSWORD'
+#    )
+
+#    ciphertext = response['CiphertextBlob']
+#    return base64.b64encode(ciphertext)
+
+#if __name__ == '__main__' :
+#        print(lambda_handler())
+#EOF
+
+#Encrypt the key
+#python key-encrypt.py
+
+
+B64_PASS=$(aws kms encrypt --key-id $KEY_ID --plaintext $PASSWORD --query CiphertextBlob --output text | base64)
+
 # JSON code for kms policy
 BLESSPOLICY='{ "Version": "2012-10-17",
           "Statement": [ {
@@ -90,9 +123,7 @@ echo 'Starting CA key creation'
 # Create a SSH CA key in lambda_configs
 ssh-keygen -t rsa -N "$PASSWORD" -b 4096 -f ./lambda_configs/bless-cauthority2- -C "SSH CA Key"
 
-echo 'Starting encoding for CA key'
 
-B64_PASS=$(aws kms encrypt --key-id $KEY_ID --plaintext $PASSWORD --query CiphertextBlob --output text | base64)
 
 
 # Create bless_deploy.cfg
@@ -105,7 +136,14 @@ make publish
 echo 'Starting creation of Lambda function'
 
 # Create Lambda
-. ./create_lambda_deploy $1
+
+DEPLOYMENTLAMBDA=blessdeployscript$1
+echo "deploymentlambda = $DEPLOYMENTLAMBDA /n rolearn = $ROLE_ARN" > .lambdafunctionvariables
+
+
+# Create Lambda
+aws lambda create-function --function-name $DEPLOYMENTLAMBDA --runtime python3.6 --role $ROLE_ARN --handler bless_lambda.lambda_handler --zip-file fileb://./publish/bless_lambda.zip
+
 
 echo 'Created Lambda function'
 echo #########################################################################
