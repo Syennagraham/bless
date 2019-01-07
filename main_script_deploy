@@ -105,7 +105,7 @@ make publish
 echo 'Starting creation of Lambda function'
 
 # Create Lambda
-. ./create_lambda $1
+. ./create_lambda_deploy $1
 
 echo 'Created Lambda function'
 echo #########################################################################
@@ -114,4 +114,4 @@ echo #########################################################################
 echo 'Starting Key Pair and ec2 instance creation'
 
 # Create Key Pair and ec2 instance
-. ./keypair_ec2 $1 
+. ./keypair_ec2_deploy $1 

@@ -1,0 +1,89 @@
+#!/bin/bash
+
+KEYPAIR_NAME=blesskeypair26
+KEYPAIR_PEM=$KEYPAIR_NAME.pem
+
+# Create aws key pair
+#KEYPAIR_PEM=$(aws ec2 create-key-pair --key-name $KEYPAIR_NAME --query 'KeyMaterial' --output text > $KEYPAIR_PEM)
+
+echo 'Created key pair'
+
+CAS=$( cat ./lambda_configs/bless-cauthority2-.pub )
+
+# Create file to update sshd
+cat<<EOF > sshd_update.txt
+#!/bin/bash
+
+echo 'TrustedUserCAKeys /etc/ssh/cas.pub' > /etc/ssh/sshd_config
+echo $CAS > /etc/ssh/cas.pub
+chmod 600 /etc/ssh/cas.pub
+
+#systemctl restart sshd
+service restart sshd
+EOF
+
+
+# Set permissions for the keypair 
+#chmod 600 $KEYPAIR_PEM
+
+echo 'Gave key pair new permissions'
+
+# Find default subnet for ec2 creation 
+DEFAULT_SUBNET=$(aws ec2 describe-subnets --filters Name=defaultForAz,Values=true --query 'Subnets[0].SubnetId' --output text)
+
+echo $DEFAULT_SUBNET
+
+
+# Create ec2 instance
+INSTANCE_ID=$(aws ec2 run-instances --image-id ami-009d6802948d06e52 --count 1 --instance-type t2.micro --key-name $KEYPAIR_NAME --subnet-id $DEFAULT_SUBNET --query 'Instances[*].InstanceId' --output text --user-data file://sshd_update.txt )
+
+echo $INSTANCE_ID
+
+
+# Wait until instance is complete
+aws ec2 wait instance-running --instance-ids $INSTANCE_ID	 
+
+
+# Querying for public IP address for log in
+INSTANCE_IP=$(aws ec2 describe-instances  --instance-ids $INSTANCE_ID --query Reservations[*].Instances[*].PublicIpAddress --output text)
+
+echo $INSTANCE_IP
+
+# Move key into ssh file
+#mv $KEYPAIR_PEM ~/.ssh
+
+
+echo $KEYPAIR_PEM
+
+# Log on to the ec2 instance
+#ssh -i ~/.ssh/$KEYPAIR_PEM ec2-user@$INSTANCE_IP
+
+
+# Go into the lambda_configs directory
+cd lambda_configs
+
+# Change the permissions on the CA key
+chmod 444 bless-cauthority2-
+
+# Go up a directory
+cd ..
+
+
+echo 'Making new key'
+# Make new key
+ssh-keygen -f ~/.ssh/blessid -b 4096 -t rsa -C 'Temporary key for BLESS certificate' -N ''
+ssh-keygen -y -f ~/.ssh/blessid > ~/.ssh/blessid.pub
+touch ~/.ssh/blessid-cert.pub
+ln -s ~/.ssh/blessid-cert.pub ~/.ssh/blessid-cert
+
+# Go into the bless_client directory
+cd bless_client
+
+./bless_client.py us-east-1 $DEPLOYMENTLAMBDA sdijf 1.1.1.1 ec2-user $(curl api.ipify.org) "" ~/.ssh/blessid.pub ~/.ssh/blessid-cert.pub
+
+echo 'Logging on to ec2 instance with new cert'
+
+# Log on to host with new cert
+ssh -i ~/.ssh/blessid ec2-user@$INSTANCE_IP
+
+ 
