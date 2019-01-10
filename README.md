@@ -54,3 +54,4 @@ Run script to create environment and create client:
 
 ## Project resources
 - Source code <https://github.com/netflix/bless>
+- Reference <https://www.youtube.com/watch?v=j-ks2MBeUWw>
