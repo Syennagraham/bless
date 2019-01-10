@@ -19,29 +19,38 @@ Function.  If properly configured, you can restrict which IAM Roles can request 
 For example, your SSH Bastion (aka SSH Jump Host) can run with the only IAM Role with access to
 invoke a BLESS Lambda Function configured with the SSH CA key trusted by the instances accessible
 to that SSH Bastion.
+## Prerequistes 
+A configured AWS CLI, Python 3.6, Docker and SSH access to Github.
+
+Deployment bash scripts are for Mac and Linux.
+
+For Windows users, option to run on an AWS Linux EC2 instance or use a Linux subsystem.
 
 ## Getting Started
 These instructions are to get BLESS up and running in your local development environment.
+
 ### Installation Instructions
 Clone the repo:
 
-    $ git clone git@github.com:Netflix/bless.git
+    $ git clone git@github.com:Practical-Code/bless.git
 
 Cd to the bless repo:
 
     $ cd bless
-
+    
 ## BLESS Deployment     
-Run the main_script_deploy to deploy BLESS:
+Run script to deploy BLESS:
 
-    $ ./main_script_deploy
+    $ bash ./main_script_deploy
 
-## Create Environment and BLESS Test
-Change variable for AWS_REGION in ec2_deploy script
 
-Run script to create an environment
+## Create Environment and Test BLESS
+Change variable for AWS_REGION at the tops of the ec2_deploy script if not in region us-east-1.
 
-    $ ./ec2_deploy
+Run script to create environment and create client:
+
+    $ bash ./ec2_deploy
+
 
 ## Project resources
 - Source code <https://github.com/netflix/bless>
