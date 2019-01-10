@@ -1,16 +1,14 @@
 #!/bin/bash
 
-#NAME=bless21
-
 BLESSCAKEY=bless-ca
 POLICYNAME=bless_iam_policy
 ROLENAME=bless_iam_role
-ALIASNAME=bless_kms_alias700
+ALIASNAME=bless_kms_alias
 PASSWORD='abc123'
 DEPLOYMENTLAMBDA=bless_lambda
 
 echo 'Install packages and test dependencies using a docker container'
-#sudo make lambda-deps
+sudo make lambda-deps
 
 
 echo 'Checking if alias exists (NotFoundException -> Ok)'
