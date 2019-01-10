@@ -34,19 +34,13 @@ Cd to the bless repo:
 ## BLESS Deployment     
 Run the main_script_deploy to deploy BLESS:
 
-Create a virtualenv if you haven't already:
     $ ./main_script_deploy
 
-    $ python3.6 -m venv venv
-
-Activate the venv:
 ## Create Environment and BLESS Test
 Change variable for AWS_REGION in ec2_deploy script
 
-    $ source venv/bin/activate
-Run the ec2_deploy script to create environment and create client
+Run script to create an environment
 
-Install package and test dependencies:
     $ ./ec2_deploy
 
 ## Project resources
