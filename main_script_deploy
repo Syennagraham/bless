@@ -1,0 +1,135 @@
+#!/bin/bash
+
+BLESSCAKEY=bless-ca
+POLICYNAME=bless_iam_policy
+ROLENAME=bless_iam_role
+ALIASNAME=bless_kms_alias1
+PASSWORD='abc123'
+DEPLOYMENTLAMBDA=bless_lambda
+
+echo 'Install packages and test dependencies using a docker container'
+#ps -ef | grep docker
+ps -ef | grep monkey
+
+
+
+
+
+#sudo make lambda-deps
+
+exit 0
+
+echo 'Checking if alias exists (NotFoundException -> Ok)'
+KEY_EXISTS=$(aws kms describe-key --key-id alias/$ALIASNAME --query KeyMetadata.Enabled --output text)
+
+if [ ${#KEY_EXISTS} == 0  ]; then
+  echo 'Create kms key and key alias'
+  KEY_ID=$(aws kms create-key --query KeyMetadata.KeyId --output text )
+  KEY_ARN=$(aws kms describe-key --key-id $KEY_ID  --query KeyMetadata.Arn --output text)
+  aws kms create-alias --alias-name alias/$ALIASNAME --target-key-id $KEY_ARN
+elif [ $KEY_EXISTS == False ]; then
+  echo "Key $ALIASNAME exists but is not usable"
+  exit 0
+else 
+  KEY_ARN=$(aws kms describe-key --key-id alias/$ALIASNAME --query KeyMetadata.Arn --output text)
+fi
+
+echo $KEY_ID
+echo $KEY_ARN
+echo $ALIASNAME
+
+
+echo 'Starting kms password encryption'
+B64_PASS=$(aws kms encrypt --key-id $KEY_ARN --plaintext $PASSWORD --query CiphertextBlob --output text)
+
+echo $B64_PASS
+
+
+echo 'Making lambda_configs directory'
+mkdir lambda_configs
+
+echo 'Starting CA key creation'
+ssh-keygen -t rsa -N "$PASSWORD" -b 4096 -f ./lambda_configs/$BLESSCAKEY -C "SSH CA Key"
+
+
+echo "The key has new permissions"
+chmod 444 lambda_configs/$BLESSCAKEY
+
+
+echo "Starting to create bless_deploy.cfg"
+. ./bless_deploy_config
+
+
+echo "Starting to compile Lambda libaries into a zip file with make publish"
+make publish 
+
+
+
+# JSON code for kms policy
+BLESSPOLICY='{ "Version": "2012-10-17",
+          "Statement": [ {
+              "Action": [
+                  "kms:GenerateRandom", "logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+          },
+          { "Sid": "AllowKMSDecryption",
+            "Effect": "Allow",
+            "Action": [
+               "kms:Decrypt", "kms:DescribeKey"
+            ],
+            "Resource": [
+                 "'$KEY_ARN'"
+            ] } ] }'
+
+echo $BLESSPOLICY
+
+
+
+# JSON code for kms role
+BLESSROLE='{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "lambda.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}'
+
+echo $BLESSROLE
+
+
+echo 'Checking for attached policy (NotFoundException -> Ok)'
+ATTACHEDPOL=$(aws iam list-attached-role-policies --role-name $ROLENAME)
+echo $ATTACHEDPOL
+
+
+if [ ${#ATTACHEDPOL} == 0 ]; then
+   echo 'Attaching bless role to bless policy'
+   ROLE_ARN=$(aws iam create-role --role-name $ROLENAME --assume-role-policy-document "$BLESSROLE" --query Role.Arn --output text)
+   POLICY_ARN=$(aws iam create-policy --policy-name $POLICYNAME --policy-document "$BLESSPOLICY" --query Policy.Arn --output text)
+   aws iam attach-role-policy --role-name $ROLENAME  --policy-arn "$POLICY_ARN"
+   echo $ROLE_ARN
+   echo $POLICY_ARN
+else
+   echo "policy attached to bless role $ATTACHEDPOL"
+   ROLE_ARN=$(aws iam get-role --role-name $ROLENAME --query Role.Arn --output text)
+   echo $ROLE_ARN
+fi 
+
+
+echo "Deleting any prior bless lambda functions"
+aws lambda delete-function --function-name $DEPLOYMENTLAMBDA
+
+
+echo 'Creating Lambda function'
+aws lambda create-function --function-name $DEPLOYMENTLAMBDA --runtime python3.6 --role $ROLE_ARN --handler bless_lambda.lambda_handler --zip-file fileb://./publish/bless_lambda.zip --timeout 10
+
+
+echo 'Created Lambda function'
+echo 'Bless deploy development complete'
