@@ -20,6 +20,13 @@ For example, your SSH Bastion (aka SSH Jump Host) can run with the only IAM Role
 invoke a BLESS Lambda Function configured with the SSH CA key trusted by the instances accessible
 to that SSH Bastion.
 
+## Getting Started
+These instructions are to get BLESS up and running in your local development environment.
+### Installation Instructions
+Clone the repo:
+
+    $ git clone git@github.com:Netflix/bless.git
+
 Cd to the bless repo:
 
     $ cd bless
@@ -44,4 +51,3 @@ Install package and test dependencies:
 
 ## Project resources
 - Source code <https://github.com/netflix/bless>
-- Issue tracker <https://github.com/netflix/bless/issues>
