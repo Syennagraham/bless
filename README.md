@@ -32,7 +32,7 @@ These instructions are to get BLESS up and running in your local development env
 ### Installation Instructions
 Clone the repo:
 
-    $ git clone git@github.com:Practical-Code/bless.git
+    $ git clone git@github.com:Syennagraham/bless.git
 
 Cd to the bless repo:
 
