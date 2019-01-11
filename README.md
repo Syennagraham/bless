@@ -68,7 +68,7 @@ Running this script will:
 - Configure the EC2 instance to trust the cert.
 - Log on to the EC2 instance with a new cert.
 
-# Generating new certs
+## Generating new certs
 To generate new cert change the name of "blessid" located in the ec2_deploy script.
 
     $ ./bless_client.py $AWS_REGION $DEPLOYMENTLAMBDA sdijf 1.1.1.1 ec2-user $(curl api.ipify.org) "" ~/.ssh/blessid.pub ~/.ssh/blessid-cert.pub
