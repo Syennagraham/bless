@@ -50,8 +50,8 @@ Running this script will:
 - Create a password protected RSA Private key.
 - Encrypt the password for the RSA Private key.
 - Create a directory called Lambda_configs which will contain the RSA public and private keys and configurations for the       Lambda function.
-- Create a iam policy referencing the KMS key.
-- Create an iam role for the Lambda.
+- Create an IAM policy referencing the KMS key.
+- Create an IAM role for the Lambda.
 - Create a Lambda function that will sign the certificates.
 
 ## Create Environment and Test BLESS
