@@ -38,11 +38,21 @@ Cd to the bless repo:
 
     $ cd bless
     
-## BLESS Deployment     
+## BLESS Deployment 
 Run script to deploy BLESS:
 
     $ bash ./main_script_deploy
 
+Running this script will:
+
+- Compile lambda dependencies.
+- Create a KMS key.
+- Create a password protected RSA Private key.
+- Encrypt the password for the RSA Private key.
+- Create a directory called Lambda_configs which will contain the RSA public and private keys and configurations for the       Lambda function.
+- Create a iam policy referencing the KMS key.
+- Create an iam role for the Lambda.
+- Create a Lambda function that will sign the certificates.
 
 ## Create Environment and Test BLESS
 Change variable for AWS_REGION at the tops of the ec2_deploy script if not in region us-east-1.
@@ -50,6 +60,18 @@ Change variable for AWS_REGION at the tops of the ec2_deploy script if not in re
 Run script to create environment and create client:
 
     $ bash ./ec2_deploy
+    
+Running this script will:
+
+- Create a Key Pair.
+- Create a new EC2 instance everytime the script is run.
+- Configure the EC2 instance to trust the cert.
+- Log on to the EC2 instance with a new cert.
+
+To generate new cert change the name of "blessid"
+
+    $ ./bless_client.py REGION LAMBDANAME aaaa 1.1.1.1 ec2-user $(curl api.ipify.org) "" ~/.ssh/blessid.pub ~/.ssh/blessid-cert.pub
+
 
 ## Project resources
 - Source code <https://github.com/netflix/bless>
