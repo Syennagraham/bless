@@ -70,7 +70,7 @@ Running this script will:
 
 To generate new cert change the name of "blessid"
 
-    $ ./bless_client.py REGION LAMBDANAME aaaa 1.1.1.1 ec2-user $(curl api.ipify.org) "" ~/.ssh/blessid.pub ~/.ssh/blessid-cert.pub
+    $ ./bless_client.py AWS_REGION LAMBDANAME aaaa 1.1.1.1 ec2-user $(curl api.ipify.org) "" ~/.ssh/blessid.pub ~/.ssh/blessid-cert.pub
 
 
 ## Project resources
