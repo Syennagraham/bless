@@ -50,7 +50,8 @@ Change variable for AWS_REGION at the tops of the ec2_deploy script if not in re
 Run script to create environment and create client:
 
     $ bash ./ec2_deploy
-
+    
+If deploying the main_script_deploy multiple times, make sure to delete previous IAM roles and polcies.
 
 ## Project resources
 - Source code <https://github.com/netflix/bless>
