@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+
+  BlessCodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub CodeBuildRole-${AWS::StackName}
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "codebuild.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /service-role/
+      Policies:
+        -
+          PolicyName: bless-codebuild-policy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Action:
+                  - "iam:GetRole"
+                  - "iam:CreateRole"
+                  - "iam:AttachRolePolicy"
+                  - "logs:PutLogEvents"
+                  - "iam:CreatePolicy"
+                  - "s3:PutObject"
+                  - "s3:GetObject"
+                  - "iam:PassRole"
+                  - "logs:CreateLogStream"
+                  - "kms:Encrypt"
+                  - "iam:ListAttachedRolePolicies"
+                  - "kms:CreateAlias"
+                  - "kms:DescribeKey"
+                  - "s3:GetObjectVersion"
+                Effect: Allow
+                Resource: '*'
+              - Sid: VisualEditor1
+                Effect: Allow
+                Action:
+                  - "lambda:CreateFunction"
+                  - "kms:CreateKey"
+                Resource: "*"
+              - Sid: VisualEditor2
+                Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                Resource:
+                  - "arn:aws:logs:us-east-1:497773990203:log-group:/aws/codebuild/bless-deploy"
+                  - "arn:aws:logs:us-east-1:497773990203:log-group:/aws/codebuild/bless-deploy:*"
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: bless-deploy-stack
+      ServiceRole: !GetAtt BlessCodeBuildServiceRole.Arn
+      Artifacts:
+        Type: no_artifacts
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/eb-python-3.4-amazonlinux-64:2.1.6
+      Source:
+        Auth:
+          Type: OAUTH
+        Location: https://github.com/Practical-Code/bless-deploy.git
+        Type: GITHUB
+        BuildSpec: "buildspec.yml"
+      Triggers:
+        Webhook: true
+      TimeoutInMinutes: 10

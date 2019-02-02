@@ -22,170 +22,196 @@ to that SSH Bastion.
 
 ## Getting Started
 These instructions are to get BLESS up and running in your local development environment.
-### Installation Instructions
-Clone the repo:
 
-    $ git clone git@github.com:Netflix/bless.git
+These instructions will create an AWS CodeBuild project in the AWS console. 
 
-Cd to the bless repo:
+The two options in the AWS CodeBuild console for operating systems are Ubuntu 14 and Windows. This CodeBuild project can not be created with one of those two operating systems. The operating system can be changed through the AWS CLI, where many more options for operating systems are available.
 
-    $ cd bless
+Since this GitHub repository is private, this project will first need to be built inside the AWS CodeBuild console and then the operating system will have to be updated using AWS CLI. 
 
-Create a virtualenv if you haven't already:
+### BLESS Deployment Instructions 
 
-    $ python3.6 -m venv venv
+#### AWS IAM
 
-Activate the venv:
+In an AWS account, navigate to the IAM console.
 
-    $ source venv/bin/activate
+Make an IAM Policy and Role for AWS CodeBuild.
 
-Install package and test dependencies:
+    {
+     "Version": "2012-10-17",
+     "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole",
+                "iam:CreateRole",
+                "iam:AttachRolePolicy",
+                "logs:PutLogEvents",
+                "iam:CreatePolicy",
+                "s3:PutObject",
+                "s3:GetObject",
+                "iam:PassRole",
+                "logs:CreateLogStream",
+                "kms:Encrypt",
+                "iam:ListAttachedRolePolicies",
+                "kms:CreateAlias",
+                "kms:DescribeKey",
+                "s3:GetObjectVersion"
+            ],
+            "Resource": [
+                "arn:aws:iam::*:policy/*",
+                "arn:aws:iam::*:role/*",
+                "arn:aws:s3:::codepipeline-us-east-1-*",
+                "arn:aws:kms:*:*:alias/*",
+                "arn:aws:kms:*:*:key/*",
+                "arn:aws:logs:us-east-1:497773990203:log-group:/aws/codebuild/bless-deploy",
+                "arn:aws:logs:us-east-1:497773990203:log-group:/aws/codebuild/bless-deploy:*"
+            ]
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:CreateFunction",
+                "kms:CreateKey"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "VisualEditor2",
+            "Effect": "Allow",
+            "Action": "logs:CreateLogGroup",
+            "Resource": [
+                "arn:aws:logs:us-east-1:497773990203:log-group:/aws/codebuild/bless-deploy",
+                "arn:aws:logs:us-east-1:497773990203:log-group:/aws/codebuild/bless-deploy:*"
+            ]
+        }
+    ]
+    }
+    
+Attach that policy to an AWS CodeBuild service role.
 
-    (venv) $ make develop
+### AWS CodeBuild
+Navigate to the AWS CodeBuild Console and select **Create build project**.
 
-Run the tests:
+#### Project Configuration 
+Name the project and give the project a description. 
 
-    (venv) $ make test
+#### Source
+Under Source, select **GitHub**.
 
+Under repository, select **Repository in my GitHub account**. 
 
-## Deployment
-To deploy an AWS Lambda Function, you need to provide a .zip with the code and all dependencies.
-The .zip must contain your lambda code and configurations at the top level of the .zip.  The BLESS
-Makefile includes a publish target to package up everything into a deploy-able .zip if they are in
-the expected locations.
+Connect to GitHub using a personal access token. 
+Personal access tokens can be generated in a user's GitHub account in setting, using developer settings. 
 
-### Compiling BLESS Lambda Dependencies
-AWS Lambda has some limitations, and to deploy code as a Lambda Function, you need to package up
-all of the dependencies.  AWS Lambda only supports Python 2.7 and BLESS depends on
-[Cryptography](https://cryptography.io/en/latest/), which must be compiled.  You will need to
-compile and include your dependencies before you can publish a working AWS Lambda.
+For GitHub repository, select **PracticalCode/bless-deploy**.
 
-You can use a docker container running amazon linux:
-- Execute ```make lambda-deps``` and this will run a container and save all the dependencies in ./aws_lambda_libs
+#### Environment 
 
-Alternatively you can:
-- Deploy an [Amazon Linux AMI](http://docs.aws.amazon.com/lambda/latest/dg/current-supported-versions.html)
-- SSH onto that instance
-- Copy BLESS' `setup.py` to the instance
-- Copy BLESS' `bless/__about__.py` to the instance at `bless/__about__.py`
-- Install BLESS' dependencies:
-```
-$ sudo yum install gcc libffi-devel openssl-devel
-$ virtualenv venv
-$ source venv/bin/activate
-(venv) $ pip install --upgrade pip setuptools
-(venv) $ pip install -e .
-```
-- From that instance, copy off the contents of:
-```
-$ cp -r venv/lib/python2.7/site-packages/. aws_lambda_libs
-$ cp -r venv/lib64/python2.7/site-packages/. aws_lambda_libs
-```
-- put those files in: ./aws_lambda_libs/
+For Environment Image, choose **Managed Image**.
 
-### Protecting the CA Private Key
-- Generate a password protected RSA Private Key:
-```
-$ ssh-keygen -t rsa -b 4096 -f bless-ca- -C "SSH CA Key"
-```
-- Use KMS to encrypt your password.  You will need a KMS key per region, and you will need to
-encrypt your password for each region.  You can use the AWS Console to paste in a simple lambda
-function like this:
-```
-import boto3
-import base64
-import os
+For Operating system, choose **Ubuntu** and **Python** and **aws/codebuild/python3.6.5**
 
+For Service role, choose the role that was created for CodeBuild.
 
-def lambda_handler(event, context):
-    region = os.environ['AWS_REGION']
-    client = boto3.client('kms', region_name=region)
-    response = client.encrypt(
-    KeyId='alias/your_kms_key',
-    Plaintext='Do not forget to delete the real plain text when done'
-    )
+#### BuildSpec
 
-    ciphertext = response['CiphertextBlob']
-    return base64.b64encode(ciphertext)
-```
+Choose **Use a buildspec file**.
+The buildspec will be found by CodeBuild in the GitHub repository.
 
-- Manage your Private Keys .pem files and passwords outside of this repo.
-- Update your bless_deploy.cfg with your Private Key's filename and encrypted passwords.
-- Provide your desired ./lambda_configs/ca_key_name.pem prior to Publishing a new Lambda .zip
-- Set the permissions of ./lambda_configs/ca_key_name.pem to 444.
+Select **Create build project**.
 
-You can now provide your private key and/or encrypted private key password via the lambda environment or config file.
-In the `[Bless CA]` section, you can set `ca_private_key` instead of the `ca_private_key_file` with a base64 encoded
-version of your .pem (e.g. `cat key.pem | base64` ).
+### Update CodeBuild Project with AWS CLI
+Make sure AWS CLI is set up and configured. https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html 
 
-Because every config file option is supported in the environment, you can also just set `bless_ca_default_password`
-and/or `bless_ca_ca_private_key`.  Due to limits on AWS Lambda environment variables, you'll need to compress RSA 4096
-private keys, which you can now do by setting `bless_ca_ca_private_key_compression`. For example, set 
-`bless_ca_ca_private_key_compression = bz2` and `bless_ca_ca_private_key` to the output of 
-`cat ca-key.pem | bzip2 | base64`.
+Update the BLESS CodeBuild project to a python-3.4-amazonlinux-64:2.1.6 image. Replace $PROJECT_NAME with the name of the CodeBuild project.
 
-### BLESS Config File
-- Refer to the the [Example BLESS Config File](bless/config/bless_deploy_example.cfg) and its
-included documentation.
-- Manage your bless_deploy.cfg files outside of this repo.
-- Provide your desired ./lambda_configs/bless_deploy.cfg prior to Publishing a new Lambda .zip
-- The required [Bless CA] option values must be set for your environment.
-- Every option can be changed in the environment. The environment variable name is contructed
-as section_name_option_name (all lowercase, spaces replaced with underscores).
+       $ aws codebuild update-project --environment image="aws/codebuild/eb-python-3.4-amazonlinux-64:2.1.6",type="LINUX_CONTAINER",computeType="BUILD_GENERAL1_SMALL"  --name $PROJECT_NAME
 
-### Publish Lambda .zip
-- Provide your desired ./lambda_configs/ca_key_name.pem prior to Publishing
-- Provide your desired [BLESS Config File](bless/config/bless_deploy_example.cfg) at
-./lambda_configs/bless_deploy.cfg prior to Publishing
-- Provide the [compiled dependencies](#compiling-bless-lambda-dependencies) at ./aws_lambda_libs
-- run:
-```
-(venv) $ make publish
-```
+### AWS CodeBuild Console
+In the AWS Codebuild console, select **Start build** to deploy BLESS.
 
-- deploy ./publish/bless_lambda.zip to AWS via the AWS Console,
-[AWS SDK](http://boto3.readthedocs.io/en/latest/reference/services/lambda.html), or
-[S3](https://aws.amazon.com/blogs/compute/new-deployment-options-for-aws-lambda/)
-- remember to deploy it to all regions.
+A Lambda function named bless_lambda will now be created and be able to sign certficates.
 
+## Create a Testing environment and Use BLESS
+Use the bash script in the folder bless_bash named ec2_deploy or follow the step by step instructions. 
 
-### Lambda Requirements
-You should deploy this function into its own AWS account to limit who has access to modify the
-code, configs, or IAM Policies.  An isolated account also limits who has access to the KMS keys
-used to protect the SSH CA Key.
+If using the bash script, change the variable for AWS_REGION at the tops of the ec2_deploy script if not in region us-east-1.
 
-The BLESS Lambda function should run as its own IAM Role and will need access to an AWS KMS Key in
-each region where the function is deployed.  The BLESS IAMRole will also need permissions to obtain
-random from kms (kms:GenerateRandom) and permissions for logging to CloudWatch Logs
-(logs:CreateLogGroup,logs:CreateLogStream,logs:PutLogEvents).
+Running this script will:
 
-## Using BLESS
-After you have [deployed BLESS](#deployment) you can run the sample [BLESS Client](bless_client/bless_client.py)
-from a system with access to the required [AWS Credentials](http://boto3.readthedocs.io/en/latest/guide/configuration.html).
-
-    (venv) $ ./bless_client.py region lambda_function_name bastion_user bastion_user_ip remote_usernames bastion_source_ip bastion_command <id_rsa.pub to sign> <output id_rsa-cert.pub>
+- Create a Key Pair.
+- Create a new EC2 instance everytime the script is run.
+- Configure the EC2 instance to trust the cert.
+- Build a BLESS client.
+- Log on to the EC2 instance with a new cert.
 
 
-## Verifying Certificates
-You can inspect the contents of a certificate with ssh-keygen directly:
+#### Step by Step Instrutions to Create an EC2 Instance and Configure the Instance to Trust the Certificate.
+Create a keypair and an EC2 instance using the AWS EC2 console. 
 
-    $ ssh-keygen -L -f your-cert.pub
+Save the keypair to a key folder and change the key's permissions to 600.
 
-## Enabling BLESS Certificates On Servers
-Add the following line to /etc/ssh/sshd_config:
+        	$ chmod 600 KEYPAIRNAME 
+        
+Log on to the EC2 instance in the command line.
 
-    TrustedUserCAKeys /etc/ssh/cas.pub
+        	$ ssh -i ~/.ssh/KEYPAIRNAME ec2-user@PUBLICIP
+        
+Go to root user and navigate into the sshd_config file:
 
-Add a new file, owned by and only writable by root, at /etc/ssh/cas.pub with the contents:
+       		$ sudo su
+		$ cd /etc/ssh
+		$ vi sshd_config
+        
+Add “TrustedUserCAKeys /etc/ssh/cas.pub” to the end of the sshd_config file and create it.
 
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQ…  #id_rsa.pub of an SSH CA
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQ…  #id_rsa.pub of an offline SSH CA
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQ…  #id_rsa.pub of an offline SSH CA 2
+		$ touch cas.pub
 
-To simplify SSH CA Key rotation you should provision multiple CA Keys, and leave them offline until
-you are ready to rotate them.
+Change the permissions on cas.pub:
 
-Additional information about the TrustedUserCAKeys file is [here](https://www.freebsd.org/cgi/man.cgi?sshd_config(5))
+		$ chmod 600 cas.pub
+
+Go in to the cas.pub file and paste in the bless-ca.pub key:
+
+		$ vi /etc/ssh/cas.pub
+
+Restart the sshd:
+
+		$ systemctl restart sshd
+        
+Exit the EC2 instance:
+		
+		$ exit 
+        
+#### Generate New Certificates
+
+Generate a new certificate:
+
+		$ ssh-keygen -f ~/.ssh/blessid -b 4096 -t rsa -C 'Temporary key for BLESS certificate' -N ''  
+		$ ssh-keygen -y -f ~/.ssh/blessid > ~/.ssh/blessid.pub  
+		$ touch ~/.ssh/blessid-cert.pub  
+		$ ln -s ~/.ssh/blessid-cert.pub ~/.ssh/blessid-cert
+
+Run the bless_client in the bless_client directory. To generate new certificates, replace the information in the bless_client with your own. 
+
+		$ ./bless_client.py
+
+Output:
+
+		$ Usage: bless_client.py region lambda_function_name bastion_user bastion_user_ip remote_usernames bastion_ips bastion_command <id_rsa.pub to sign> <output id_rsa-cert.pub> [kmsauth token]
+
+Example:
+
+		$ ./bless_client.py us-east-1 LAMBDANAME aaaa 1.1.1.1 ec2-user $(curl api.ipify.org) "" ~/.ssh/blessid.pub ~/.ssh/blessid-cert.pub
+
+  
+Sign in with the new certificate. 
+
+		$ ssh -i ~/.ssh/blessid ec2-user@PUBLICIPADDRESS
+
 
 ## Project resources
 - Source code <https://github.com/netflix/bless>
